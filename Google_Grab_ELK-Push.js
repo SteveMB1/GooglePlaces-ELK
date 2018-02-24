@@ -12,28 +12,34 @@ ES = new elasticsearch.Client({
 var d = new Date();
 dayArr = d.getDay();
 
-async.forEach(config.LOCATIONS,function(err,res) {
+ES.count({ index: config.ELK_INDEX_NAME }, function (count_error, count_response) {
+	if ( count_response.error ) {
+		id_numb = 1;
+		} else {
+			id_numb = (count_response.count) + (1);
+	};
+		});
+
+async.each(config.LOCATIONS,function(data,err) {
+console.log(data.gid)
 	const toES = async () => {
-		await	busy_hours( config.LOCATIONS[0].gid, config.GOOGLE_API_KEY ).then(data => {
-		ES.count({ index: config.ELK_INDEX_NAME }, function (count_error, count_response) {
-			if ( count_response.error ) {
-				id_numb = 1;
-				} else {
-					id_numb = (count_response.count) + (1);
-			};
+		await	busy_hours( data.gid, config.GOOGLE_API_KEY ).then(data => {
 		ES.create({
 			index: config.ELK_INDEX_NAME,
 			type: 'string',
 			id: id_numb,
 			body: {
-				title: config.LOCATIONS[0].title,
+				title: data.title,
 				day: data.week[dayArr].day,
 				hours: data.week[dayArr].hours,
 				'@timestamp': new Date().toISOString()
 			}
-			}, function (error, response) { console.log( "" + util.inspect(response,error, {showHidden: false, depth: null}) + "" ) });
-		});
+			}, 
+			function (error, response) { console.log( "" + util.inspect(response,error, {showHidden: false, depth: null}) + "" );
+				id_numb++;
+				console.log(id_numb); 
+			});
 		});
 	};
-	toES()
+	toES();
 });
